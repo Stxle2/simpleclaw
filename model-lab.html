@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Model Lab - SimpleClaw</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2128;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --muted: #8b949e;
+    --green: #3fb950;
+    --red: #f85149;
+    --yellow: #d29922;
+    --blue: #58a6ff;
+    --purple: #bc8cff;
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
+  
+  header { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 20px; }
+  h1 { font-size: 20px; color: #f0f6fc; margin-bottom: 8px; }
+  .subtitle { color: var(--muted); font-size: 13px; }
+  
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+  .card-title { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 16px; }
+  
+  .model-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .model-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 12px; cursor: pointer; transition: all 0.15s; }
+  .model-item:hover { border-color: var(--blue); background: rgba(88, 166, 255, 0.07); }
+  .model-item.selected { border-color: var(--blue); background: rgba(88, 166, 255, 0.1); }
+  .model-name { font-weight: 600; margin-bottom: 4px; }
+  .model-provider { font-size: 11px; color: var(--muted); }
+  
+  .spawn-section { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 16px; }
+  
+  label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: var(--text); }
+  input, textarea, select { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 8px; color: var(--text); font-family: inherit; font-size: 13px; margin-bottom: 12px; }
+  input:focus, textarea:focus, select:focus { outline: none; border-color: var(--blue); }
+  textarea { min-height: 120px; font-family: 'Monaco', 'Courier New', monospace; }
+  
+  button { background: var(--blue); color: #fff; border: none; border-radius: 6px; padding: 10px 16px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+  button:hover { background: #4a8dd8; }
+  button:disabled { background: var(--border); cursor: not-allowed; }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { background: var(--surface); }
+  
+  .result { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-top: 12px; font-family: 'Monaco', 'Courier New', monospace; font-size: 12px; white-space: pre-wrap; max-height: 400px; overflow-y: auto; }
+  .result.success { border-color: var(--green); }
+  .result.error { border-color: var(--red); }
+  
+  .status-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 500; }
+  .status-running { background: var(--yellow); color: #000; }
+  .status-complete { background: var(--green); color: #000; }
+  .status-failed { background: var(--red); color: #fff; }
+  
+  .back-link { color: var(--blue); text-decoration: none; font-size: 13px; }
+  .back-link:hover { text-decoration: underline; }
+  
+  .flex { display: flex; gap: 12px; align-items: center; }
+  .flex-end { justify-content: flex-end; }
+</style>
+</head>
+<body>
+  <header>
+    <div class="flex">
+      <div style="flex: 1;">
+        <h1>🧪 Model Lab</h1>
+        <p class="subtitle">Multi-model testing & sub-agent spawning</p>
+      </div>
+      <a href="/" class="back-link">← Back to Dashboard</a>
+    </div>
+  </header>
+
+  <div class="card">
+    <div class="card-title">Available Models</div>
+    <div id="modelGrid" class="model-grid">
+      <div style="color: var(--muted);">Loading models...</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Spawn Test Sub-Agent</div>
+    <div class="spawn-section">
+      <label>Selected Model</label>
+      <input type="text" id="selectedModel" readonly placeholder="Click a model above">
+
+      <label>Task Description</label>
+      <textarea id="taskText" placeholder="e.g., Transcribe voice message at /path/to/file.ogg"></textarea>
+
+      <label>Timeout (seconds)</label>
+      <input type="number" id="timeout" value="300" min="60" max="1200">
+
+      <div class="flex flex-end">
+        <button class="btn-secondary" onclick="clearForm()">Clear</button>
+        <button id="spawnBtn" onclick="spawnAgent()" disabled>Spawn Sub-Agent</button>
+      </div>
+
+      <div id="result"></div>
+    </div>
+  </div>
+
+  <script>
+    let selectedModel = null;
+
+    // Load available models
+    async function loadModels() {
+      try {
+        const res = await fetch('/proxy/current-model');
+        const data = await res.json();
+        
+        // Mock model list for now - in production this would scan actual models
+        const models = [
+          { id: 'anthropic/claude-sonnet-4-5', provider: 'Anthropic', name: 'Claude Sonnet 4.5' },
+          { id: 'anthropic/claude-opus-4', provider: 'Anthropic', name: 'Claude Opus 4' },
+          { id: 'openai/gpt-4o', provider: 'OpenAI', name: 'GPT-4o' },
+          { id: 'openai/gpt-4o-mini', provider: 'OpenAI', name: 'GPT-4o Mini' },
+        ];
+
+        const grid = document.getElementById('modelGrid');
+        grid.innerHTML = models.map(m => `
+          <div class="model-item" onclick="selectModel('${m.id}', '${m.name}')">
+            <div class="model-name">${m.name}</div>
+            <div class="model-provider">${m.provider}</div>
+          </div>
+        `).join('');
+      } catch (e) {
+        document.getElementById('modelGrid').innerHTML = 
+          '<div style="color: var(--red);">Failed to load models</div>';
+      }
+    }
+
+    function selectModel(id, name) {
+      selectedModel = id;
+      document.getElementById('selectedModel').value = name;
+      document.getElementById('spawnBtn').disabled = false;
+      
+      // Visual selection
+      document.querySelectorAll('.model-item').forEach(el => el.classList.remove('selected'));
+      event.target.closest('.model-item').classList.add('selected');
+    }
+
+    async function spawnAgent() {
+      const task = document.getElementById('taskText').value.trim();
+      if (!task) {
+        showResult('Error: Please enter a task description', 'error');
+        return;
+      }
+
+      const timeout = parseInt(document.getElementById('timeout').value);
+      const btn = document.getElementById('spawnBtn');
+      btn.disabled = true;
+      btn.textContent = 'Spawning...';
+
+      showResult('Spawning sub-agent with ' + selectedModel + '...\\n', 'running');
+
+      try {
+        // Call OpenClaw sessions_spawn via proxy
+        const res = await fetch('/proxy/spawn-subagent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: selectedModel,
+            task: task,
+            timeout: timeout
+          })
+        });
+
+        const data = await res.json();
+        
+        if (data.error) {
+          showResult('Error: ' + data.error, 'error');
+        } else {
+          showResult(
+            'Sub-agent spawned successfully!\\n\\n' +
+            'Session: ' + (data.childSessionKey || 'unknown') + '\\n' +
+            'Run ID: ' + (data.runId || 'unknown') + '\\n\\n' +
+            'Status: Working... (check main session for completion)',
+            'success'
+          );
+        }
+      } catch (e) {
+        showResult('Error: ' + e.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Spawn Sub-Agent';
+      }
+    }
+
+    function showResult(text, type) {
+      const result = document.getElementById('result');
+      result.textContent = text;
+      result.className = 'result ' + type;
+      result.style.display = 'block';
+    }
+
+    function clearForm() {
+      document.getElementById('taskText').value = '';
+      document.getElementById('result').style.display = 'none';
+    }
+
+    // Initialize
+    loadModels();
+  </script>
+</body>
+</html>
