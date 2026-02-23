@@ -1,7 +1,7 @@
 {
   "name": "simpleclaw",
   "version": "1.1.0",
-  "description": "Agent config, model management, and dashboard CLI for OpenClaw",
+  "description": "OpenClaw is powerful. Configuring it shouldn't feel like defusing a bomb. SimpleClaw wraps agent management, model switching, and config editing into a clean CLI + web dashboard. Check status, trigger heartbeats, scan models, edit JSON \u2014 without touching the docs. \ud83d\ude07",
   "type": "module",
   "bin": {
     "simpleclaw": "./index.js"
@@ -9,7 +9,13 @@
   "scripts": {
     "start": "node index.js"
   },
-  "keywords": ["openclaw", "ai-agents", "cli", "llm", "agent-management"],
+  "keywords": [
+    "openclaw",
+    "ai-agents",
+    "cli",
+    "llm",
+    "agent-management"
+  ],
   "author": "Martin Dreher",
   "license": "MIT",
   "repository": {
