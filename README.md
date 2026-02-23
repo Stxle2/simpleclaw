@@ -15,7 +15,7 @@ No SKAI relay. No hardcoded tokens. Just your `~/.openclaw/openclaw.json`.
 ## Install
 
 ```bash
-git clone https://github.com/martindreams/simpleclaw
+git clone https://github.com/Stxle2/simpleclaw
 cd simpleclaw
 npm install
 npm link   # makes 'simpleclaw' available globally
