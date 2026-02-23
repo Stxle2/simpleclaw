@@ -409,7 +409,7 @@
 // ─── State ──────────────────────────────────────────────────────────────────
 let currentPage = 'status';
 let statusData = null;
-let skaiData = null;
+let skaiData = null; // relay feature
 
 // ─── Navigation ─────────────────────────────────────────────────────────────
 function navigate(page) {
@@ -657,15 +657,10 @@ async function saveConfig() {
 
 // ─── SKAI ─────────────────────────────────────────────────────────────────────
 async function loadSkai() {
-  try {
-    const res = await fetch('/proxy/skai-history');
-    const data = await res.json();
-    skaiData = data;
-    renderTasks(data.messages || []);
-    renderMessages(data.messages || []);
-  } catch(e) {
-    document.getElementById('taskList').innerHTML = '<div class="empty">Error: ' + esc(e.message) + '</div>';
-  }
+  // Relay messaging is not included in SimpleClaw public build.
+  // Integrate your own relay or use OpenClaw's native channels.
+  document.getElementById('taskList') && (document.getElementById('taskList').innerHTML = '<div class="empty">Connect your relay in OpenClaw settings to enable task sync.</div>');
+  document.getElementById('msgList') && (document.getElementById('msgList').innerHTML = '<div class="empty">Relay messaging not configured.</div>');
 }
 
 function renderTasks(msgs) {
@@ -716,26 +711,7 @@ function renderMessages(msgs) {
 }
 
 async function sendMsg() {
-  const to = document.getElementById('sendTo').value;
-  const text = document.getElementById('sendText').value.trim();
-  if (!text) { toast('Enter a message', 'info'); return; }
-  try {
-    const res = await fetch('/proxy/skai-send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to, text })
-    });
-    const data = await res.json();
-    if (data.id) {
-      toast('✅ Sent to ' + to);
-      document.getElementById('sendText').value = '';
-      setTimeout(loadSkai, 500);
-    } else {
-      toast('❌ ' + JSON.stringify(data), 'error');
-    }
-  } catch(e) {
-    toast('❌ ' + e.message, 'error');
-  }
+  toast('Configure a relay in OpenClaw to enable messaging.', 'info');
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
